@@ -1,6 +1,7 @@
 #include "shmht.h"
 #include "timer.h"
 #include "hashInt.h"
+#include <string.h>
 #include <stdio.h>
 
 char path[] = "./sharedMemory";
