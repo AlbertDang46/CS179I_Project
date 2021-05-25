@@ -5,10 +5,12 @@
 #include <netinet/in.h>
 #include <string.h>
 #include "timer.h"
+#include "node.h"
 
 #define PORT 8080
 #define MESSAGE_LIMIT 1000000
 #define NUM_DATAPOINTS 1000
+#define NUM_ITERATIONS 1000
 
 int main(int argc, char const* argv[]) {
     int server_fd;
@@ -50,26 +52,30 @@ int main(int argc, char const* argv[]) {
     char message[MESSAGE_LIMIT] = {0};
     struct timespec after;
 
-    for (int i = 1; i <= NUM_DATAPOINTS; i++) {
-        size_t total_recv = 0;
+    for (int k = 0; k < NUM_ITERATIONS; k++) {
+        for (int i = 1; i <= NUM_DATAPOINTS; i++) {
+            size_t total_recv = 0;
 
-        while (total_recv != i * MESSAGE_LIMIT / NUM_DATAPOINTS) {
-            ssize_t bytes_recv = recv(client_fd, message, MESSAGE_LIMIT, 0);
-            if (bytes_recv == -1) {
-                perror("Receive message error");
-                exit(EXIT_FAILURE);
+            while (total_recv != i * MESSAGE_LIMIT / NUM_DATAPOINTS) {
+                ssize_t bytes_recv = recv(client_fd, message + total_recv, MESSAGE_LIMIT - total_recv, 0);
+                if (bytes_recv == -1) {
+                    perror("Receive message error");
+                    exit(EXIT_FAILURE);
+                }
+                total_recv += bytes_recv;
+                // printf("Partial bytes received: %ld\n", total_recv);
             }
-            total_recv += bytes_recv;
-            printf("Partial bytes received: %ld\n", total_recv);
+
+            get_monotonic_time(&after);
+
+            // printf("Number of bytes received: %ld\n", total_recv);
+            // printf("Ending time: %ld\n", get_time_nano(&after));
+            // printf("\n");
+
+            send(client_fd, &after, sizeof(after), 0);
         }
 
-        get_monotonic_time(&after);
-
-        printf("Number of bytes received: %ld\n", total_recv);
-        printf("Ending time: %ld\n", get_time_nano(&after));
-        printf("\n");
-
-        send(client_fd, &after, sizeof(after), 0);
+        printf("Set %d finished!\n", k);
     }
 
     return 0;
