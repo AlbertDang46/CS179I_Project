@@ -190,7 +190,9 @@ lcore_recv(__rte_unused void *arg)
 
         // increment treeSize to keep track of current Tree
         treeSize += increment;
-        if (treeSize > finalTreeSize){ // quit program once all Tree's have been created
+        
+        // quit program once all Tree's have been created
+        if (treeSize > finalTreeSize){
             FILE *flagRing = fopen("flagRing.txt", "w");
             fputs("1", flagRing);
             fclose(flagRing);
