@@ -52,7 +52,7 @@ static const char *_PRI_2_SEC = "PRI_2_SEC";
 struct rte_ring *send_ring, *recv_ring;
 struct rte_mempool *message_pool;
 
-static void copyTreeSHM(Node *root) {
+static void* copyTreeSHM(Node *root) {
 	if (root == NULL) {
 		return;
 	}
@@ -62,9 +62,9 @@ static void copyTreeSHM(Node *root) {
 		rte_panic("Failed to get message buffer\n");
 	}
 
-	(Node *)cpRoot->key = root->key;
-	(Node *)cpRoot->left = copyTreeSHM(root->left);
-	(Node *)cpRoot->right = copyTreeSHM(root->right);
+	((Node *)cpRoot)->key = root->key;
+	((Node *)cpRoot)->left = copyTreeSHM(root->left);
+	((Node *)cpRoot)->right = copyTreeSHM(root->right);
 
 	return cpRoot;
 }
@@ -93,7 +93,7 @@ client_recv(struct timespec *before)
 }
 
 static int
-server_recv(struct timespec *after)
+server_recv(struct timespec *after, int type)
 {
 	void *msg;
 	while (rte_ring_dequeue(recv_ring, &msg) < 0){
@@ -102,9 +102,9 @@ server_recv(struct timespec *after)
 
 	get_monotonic_time(after);
 
-	if (strcmp(argv[1], "char") == 0) {
+	if (type == 0) {
 		rte_mempool_put(message_pool, msg);
-	} else if (strcmp(argv[1], "node") == 0) {
+	} else if (type == 1) {
 		deleteTreeSHM((Node *)msg);
 	}
 
@@ -178,7 +178,8 @@ main(int argc, char **argv)
 		msg_length = i * DATA_INC;
 
 		if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
-			server_recv(&after);
+			int type = strcmp(argv[1], "char") == 0 ? 0 : 1;
+			server_recv(&after, type);
 		} else {
 			if (strcmp(argv[1], "node") == 0) {
 				deleteTree(msgTree);
