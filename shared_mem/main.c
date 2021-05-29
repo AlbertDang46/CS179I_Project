@@ -132,7 +132,7 @@ main(int argc, char **argv)
 
 	RTE_LOG(INFO, APP, "Finished Process Init.\n");
 
-	Node *msgTree;
+	Node *msgTree = NULL;
     char message[MESSAGE_LIMIT] = {0};
     size_t msg_length;
     
