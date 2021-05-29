@@ -1,15 +1,27 @@
 #!/bin/bash
 
-for i in $(seq 1000 1000 1000000)
-do
-    while pgrep -x server; do sleep 5; done;
-    ./server char $i &
-    ./client char $i $1 >> latency_data.txt
-done
+if $1 == server
+then
+    for i in $(seq 1000 1000 1000000)
+    do
+        ./server char $i
+    done
 
-for i in $(seq 1000 1000 1000000)
-do
-    while pgrep -x server; do sleep 5; done;
-    ./server node $i &
-    ./client node $i $1 >> latency_data_tree.txt
-done 
+    for i in $(seq 1000 1000 1000000)
+    do
+        ./server node $i
+    done 
+elif $1 == client
+then
+    for i in $(seq 1000 1000 1000000)
+    do
+        ./client char $i $2 >> latency_data.txt
+        sleep 5
+    done
+
+    for i in $(seq 1000 1000 1000000)
+    do
+        ./client node $i $2 >> latency_data_tree.txt
+        sleep 5
+    done 
+fi
