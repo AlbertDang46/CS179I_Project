@@ -52,6 +52,33 @@ static const char *_PRI_2_SEC = "PRI_2_SEC";
 struct rte_ring *send_ring, *recv_ring;
 struct rte_mempool *message_pool;
 
+static void copyTreeSHM(Node *root) {
+	if (root == NULL) {
+		return;
+	}
+
+	void *cpRoot = NULL;
+	if (rte_mempool_get(message_pool, &cpRoot) < 0) {
+		rte_panic("Failed to get message buffer\n");
+	}
+
+	(Node *)cpRoot->key = root->key;
+	(Node *)cpRoot->left = copyTreeSHM(root->left);
+	(Node *)cpRoot->right = copyTreeSHM(root->right);
+
+	return cpRoot;
+}
+
+static void deleteTreeSHM(Node *root) {
+	if (root == NULL) {
+		return;
+	}
+
+	deleteTreeSHM(root->left);
+	deleteTreeSHM(root->right);
+	rte_mempool_put(message_pool, root);	
+}
+
 static int
 client_recv(struct timespec *before)
 {
@@ -75,7 +102,11 @@ server_recv(struct timespec *after)
 
 	get_monotonic_time(after);
 
-	rte_mempool_put(message_pool, msg);
+	if (strcmp(argv[1], "char") == 0) {
+		rte_mempool_put(message_pool, msg);
+	} else if (strcmp(argv[1], "node") == 0) {
+		deleteTreeSHM((Node *)msg);
+	}
 
 	if (rte_mempool_get(message_pool, &msg) < 0)
 		rte_panic("Failed to get message buffer\n");
@@ -157,10 +188,16 @@ main(int argc, char **argv)
 			get_monotonic_time(&before);
 
 			void *msg = NULL;
-			if (rte_mempool_get(message_pool, &msg) < 0)
-				rte_panic("Failed to get message buffer\n");
 
-			strlcpy((char *)msg, message, msg_length);
+			if (strcmp(argv[1], "char") == 0) {
+				if (rte_mempool_get(message_pool, &msg) < 0) {
+					rte_panic("Failed to get message buffer\n");
+				}
+
+				strlcpy((char *)msg, message, msg_length);
+			} else if (strcmp(argv[1], "node") == 0) {
+				msg = copyTreeSHM(msgTree);
+			}
 
 			if (rte_ring_enqueue(send_ring, msg) < 0) {
 				printf("Failed to send message - message discarded\n");
