@@ -2,15 +2,17 @@
 #define __NODE_H__
 
 #include <stdio.h>
-#define NO_NODE -1
+#include <stdlib.h>
 
-struct Node {
+#define NO_NODE '~'
+
+typedef struct Node {
 	char key;
 	struct Node *left, *right;
-};
+} Node;
 
 Node* newNode(char key) {
-	Node *temp = new Node;
+	Node *temp = malloc(sizeof(Node));
 	temp->key = key;
 	temp->left = temp->right = NULL;
 
@@ -19,7 +21,7 @@ Node* newNode(char key) {
 
 Node* buildTree(unsigned int size, char key) {
     if (size == 0) {
-        return 0;
+        return NULL;
     }
 
     unsigned int remainingSize = size - 1;
@@ -45,14 +47,14 @@ char* serialize(Node *root, char *list) {
     return end_index;
 }
 
-char* deSerialize(Node *&root, char *list) {
+char* deserialize(Node *root, char *list) {
 	if (list[0] == NO_NODE) {
 	    return list + 1;
     }
 
 	root = newNode(list[0]);
-	char *right_start = deSerialize(root->left, list + 1);
-	char *end_index = deSerialize(root->right, right_start);
+	char *right_start = deserialize(root->left, list + 1);
+	char *end_index = deserialize(root->right, right_start);
 
     return end_index;
 }
@@ -60,39 +62,9 @@ char* deSerialize(Node *&root, char *list) {
 void inorder(Node *root) {
 	if (root) {
 		inorder(root->left);
-		printf("%d ", root->key);
+		printf("%c\n", root->key);
 		inorder(root->right);
 	}
-}
-
-int main() {
-	// Let us construct a tree shown in the above figure
-	struct Node *root	 = newNode(20);
-	root->left			 = newNode(8);
-	root->right			 = newNode(22);
-	root->left->left		 = newNode(4);
-	root->left->right	 = newNode(12);
-	root->left->right->left = newNode(10);
-	root->left->right->right = newNode(14);
-
-	// Let us open a file and serialize the tree into the file
-	FILE *fp = fopen("tree.txt", "w");
-	if (fp == NULL) {
-		puts("Could not open file");
-		return 0;
-	}
-	serialize(root, fp);
-	fclose(fp);
-
-	// Let us deserialize the storeed tree into root1
-	Node *root1 = NULL;
-	fp = fopen("tree.txt", "r");
-	deSerialize(root1, fp);
-
-	printf("Inorder Traversal of the tree constructed from file:\n");
-	inorder(root1);
-
-	return 0;
 }
 
 #endif

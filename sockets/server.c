@@ -8,9 +8,7 @@
 #include "node.h"
 
 #define PORT 8080
-#define MESSAGE_LIMIT 1000000
-#define NUM_DATAPOINTS 1000
-#define NUM_ITERATIONS 1000
+#define MESSAGE_LIMIT 2000001
 
 int main(int argc, char const* argv[]) {
     int server_fd;
@@ -33,7 +31,6 @@ int main(int argc, char const* argv[]) {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
        
-    // Forcefully attaching socket to the port 8080
     if (bind(server_fd, (struct sockaddr*)&address, addrlen) < 0) {
         perror("Socket bind error");
         exit(EXIT_FAILURE);
@@ -49,33 +46,47 @@ int main(int argc, char const* argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    Node *msgTree;
     char message[MESSAGE_LIMIT] = {0};
+    size_t msg_length = atoi(argv[2]);
+    
     struct timespec after;
 
-    for (int k = 0; k < NUM_ITERATIONS; k++) {
-        for (int i = 1; i <= NUM_DATAPOINTS; i++) {
-            size_t total_recv = 0;
+    if (strcmp(argv[1], "node") == 0) {
+        msg_length += msg_length + 1;
+    }
 
-            while (total_recv != i * MESSAGE_LIMIT / NUM_DATAPOINTS) {
-                ssize_t bytes_recv = recv(client_fd, message + total_recv, MESSAGE_LIMIT - total_recv, 0);
-                if (bytes_recv == -1) {
-                    perror("Receive message error");
-                    exit(EXIT_FAILURE);
-                }
-                total_recv += bytes_recv;
-                // printf("Partial bytes received: %ld\n", total_recv);
-            }
+    size_t total_recv = 0;
 
-            get_monotonic_time(&after);
-
-            // printf("Number of bytes received: %ld\n", total_recv);
-            // printf("Ending time: %ld\n", get_time_nano(&after));
-            // printf("\n");
-
-            send(client_fd, &after, sizeof(after), 0);
+    while (total_recv != msg_length) {
+        ssize_t bytes_recv = recv(client_fd, message + total_recv, MESSAGE_LIMIT - total_recv, 0);
+        if (bytes_recv < 0) {
+            perror("Receive message error");
+            exit(EXIT_FAILURE);
         }
+        total_recv += bytes_recv;
+    }
 
-        printf("Set %d finished!\n", k);
+    if (strcmp(argv[1], "node") == 0) {
+        deserialize(msgTree, message);
+    }
+
+    get_monotonic_time(&after);
+    send(client_fd, &after, sizeof(after), 0);
+
+    if (shutdown(client_fd, SHUT_RDWR) < 0) {
+        perror("Shutdown socket error");
+        exit(EXIT_FAILURE);
+    }
+
+    if (close(client_fd) < 0) {
+        perror("Close socket error");
+        exit(EXIT_FAILURE);
+    }
+
+    if (close(server_fd) < 0) {
+        perror("Close socket error");
+        exit(EXIT_FAILURE);
     }
 
     return 0;

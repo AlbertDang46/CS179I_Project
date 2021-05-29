@@ -8,15 +8,13 @@
 #include "node.h"
 
 #define PORT 8080
-#define MESSAGE_LIMIT 1000000
-#define NUM_DATAPOINTS 1000
-#define NUM_ITERATIONS 1000
+#define MESSAGE_LIMIT 2000001
    
 int main(int argc, char const* argv[]) {
-    int sockfd;
+    int sock_fd;
     struct sockaddr_in serv_addr;
 
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    if ((sock_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("\nSocket creation error\n");
         exit(EXIT_FAILURE);
     }
@@ -29,65 +27,55 @@ int main(int argc, char const* argv[]) {
         exit(EXIT_FAILURE);
     }
    
-    if (connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
+    if (connect(sock_fd, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) {
         perror("\nConnection Failed\n");
         exit(EXIT_FAILURE);
     }
 
-    long latency_times[NUM_DATAPOINTS] = {0};
-
-    char message[MESSAGE_LIMIT];
-    size_t msg_length;
+    Node *msgTree;
+    char message[MESSAGE_LIMIT] = {0};
+    size_t msg_length = atoi(argv[2]);
+    
     struct timespec before;
     struct timespec after;
 
-    for (int i = 0; i < MESSAGE_LIMIT; i++)
+    for (int i = 0; i < MESSAGE_LIMIT; i++) {
         message[i] = '0';
+    }
 
-    for (int k = 0; k < NUM_ITERATIONS; k++) {
-        for (int i = 1; i <= NUM_DATAPOINTS; i++) {
-            msg_length = i * MESSAGE_LIMIT / NUM_DATAPOINTS;
-            size_t total_sent = 0;
+    if (strcmp(argv[1], "node") == 0) {
+        msgTree = buildTree(msg_length, '0');
+    }
 
-            get_monotonic_time(&before);
+    size_t total_sent = 0;
 
-            while (total_sent != msg_length) {
-                ssize_t bytes_sent = send(sockfd, message + total_sent, msg_length - total_sent, 0);
-                if (bytes_sent == -1) {
-                    perror("Send message error");
-                    exit(EXIT_FAILURE);
-                }
-                total_sent += bytes_sent;
-                // printf("Partial bytes sent: %ld\n", total_sent);
-            }
-            
-            // printf("Number of bytes sent: %ld\n", msg_length);
-            // printf("Starting time: %ld\n", get_time_nano(&before));
+    get_monotonic_time(&before);
 
-            recv(sockfd, &after, sizeof(after), 0);
+    if (strcmp(argv[1], "node") == 0) {
+        serialize(msgTree, message);
+        msg_length += msg_length + 1;
+    }
 
-            // printf("Ending time: %ld\n", get_time_nano(&after));
-            // printf("Time taken: %ld\n", get_elapsed_time_nano(&before, &after));
-            // printf("\n");
-
-            latency_times[i - 1] += get_elapsed_time_nano(&before, &after);
+    while (total_sent != msg_length) {
+        ssize_t bytes_sent = send(sock_fd, message + total_sent, msg_length - total_sent, 0);
+        if (bytes_sent < 0) {
+            perror("Send message error");
+            exit(EXIT_FAILURE);
         }
-
-        printf("Set %d finished!\n", k);
+        total_sent += bytes_sent;
     }
 
-    for (int k = 0; k < NUM_ITERATIONS; k++) {
-        for (int i = 1; i <= NUM_DATAPOINTS; i++) {
-            
-        }
+    recv(sock_fd, &after, sizeof(after), 0);
+    printf("%ld\n", get_elapsed_time_nano(&before, &after));
+
+    if (shutdown(sock_fd, SHUT_RDWR) < 0) {
+        perror("Shutdown socket error");
+        exit(EXIT_FAILURE);
     }
 
-    for (int i = 0; i < NUM_DATAPOINTS; i++) {
-        latency_times[i] /= NUM_ITERATIONS;
-    }
-
-    for (int i = 1; i <= NUM_DATAPOINTS; i++) {
-        printf("Latency of sending %d bytes: %ld\n", i * MESSAGE_LIMIT / NUM_DATAPOINTS, latency_times[i - 1]);
+    if (close(sock_fd) < 0) {
+        perror("Close socket error");
+        exit(EXIT_FAILURE);
     }
 
     return 0;
