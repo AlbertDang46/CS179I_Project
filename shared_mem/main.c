@@ -54,7 +54,7 @@ struct rte_mempool *message_pool;
 
 static void* copyTreeSHM(Node *root) {
 	if (root == NULL) {
-		return;
+		return NULL;
 	}
 
 	void *cpRoot = NULL;
