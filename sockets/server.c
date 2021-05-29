@@ -9,6 +9,8 @@
 
 #define PORT 8080
 #define MESSAGE_LIMIT 2000001
+#define NUM_DATAPOINTS 1000
+#define DATA_INC 1000
 
 int main(int argc, char const* argv[]) {
     int server_fd;
@@ -48,31 +50,35 @@ int main(int argc, char const* argv[]) {
 
     Node *msgTree;
     char message[MESSAGE_LIMIT] = {0};
-    size_t msg_length = atoi(argv[2]);
+    size_t msg_length;
     
     struct timespec after;
 
-    if (strcmp(argv[1], "node") == 0) {
-        msg_length += msg_length + 1;
-    }
+    for (int i = 1; i <= NUM_DATAPOINTS; i++) {
+        msg_length = i * DATA_INC;
 
-    size_t total_recv = 0;
-
-    while (total_recv != msg_length) {
-        ssize_t bytes_recv = recv(client_fd, message + total_recv, MESSAGE_LIMIT - total_recv, 0);
-        if (bytes_recv < 0) {
-            perror("Receive message error");
-            exit(EXIT_FAILURE);
+        if (strcmp(argv[1], "node") == 0) {
+            msg_length += msg_length + 1;
         }
-        total_recv += bytes_recv;
-    }
 
-    if (strcmp(argv[1], "node") == 0) {
-        deserialize(msgTree, message);
-    }
+        size_t total_recv = 0;
 
-    get_monotonic_time(&after);
-    send(client_fd, &after, sizeof(after), 0);
+        while (total_recv != msg_length) {
+            ssize_t bytes_recv = recv(client_fd, message + total_recv, MESSAGE_LIMIT - total_recv, 0);
+            if (bytes_recv < 0) {
+                perror("Receive message error");
+                exit(EXIT_FAILURE);
+            }
+            total_recv += bytes_recv;
+        }
+
+        if (strcmp(argv[1], "node") == 0) {
+            deserialize(msgTree, message);
+        }
+
+        get_monotonic_time(&after);
+        send(client_fd, &after, sizeof(after), 0);
+    }
 
     if (shutdown(client_fd, SHUT_RDWR) < 0) {
         perror("Shutdown socket error");

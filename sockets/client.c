@@ -9,6 +9,8 @@
 
 #define PORT 8080
 #define MESSAGE_LIMIT 2000001
+#define NUM_DATAPOINTS 1000
+#define DATA_INC 1000
    
 int main(int argc, char const* argv[]) {
     int sock_fd;
@@ -22,7 +24,7 @@ int main(int argc, char const* argv[]) {
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(PORT);
        
-    if(inet_pton(AF_INET, argv[3], &serv_addr.sin_addr) <= 0) {
+    if(inet_pton(AF_INET, argv[2], &serv_addr.sin_addr) <= 0) {
         perror("\nInvalid address / Address not supported\n");
         exit(EXIT_FAILURE);
     }
@@ -34,7 +36,7 @@ int main(int argc, char const* argv[]) {
 
     Node *msgTree;
     char message[MESSAGE_LIMIT] = {0};
-    size_t msg_length = atoi(argv[2]);
+    size_t msg_length;
     
     struct timespec before;
     struct timespec after;
@@ -43,30 +45,35 @@ int main(int argc, char const* argv[]) {
         message[i] = '0';
     }
 
-    if (strcmp(argv[1], "node") == 0) {
-        msgTree = buildTree(msg_length, '0');
-    }
+    for (int i = 1; i <= NUM_DATAPOINTS; i++) {
+        msg_length = i * DATA_INC;
 
-    size_t total_sent = 0;
-
-    get_monotonic_time(&before);
-
-    if (strcmp(argv[1], "node") == 0) {
-        serialize(msgTree, message);
-        msg_length += msg_length + 1;
-    }
-
-    while (total_sent != msg_length) {
-        ssize_t bytes_sent = send(sock_fd, message + total_sent, msg_length - total_sent, 0);
-        if (bytes_sent < 0) {
-            perror("Send message error");
-            exit(EXIT_FAILURE);
+        if (strcmp(argv[1], "node") == 0) {
+            deleteTree(msgTree);
+            msgTree = buildTree(msg_length, '0');
+            msg_length += msg_length + 1;
         }
-        total_sent += bytes_sent;
-    }
 
-    recv(sock_fd, &after, sizeof(after), 0);
-    printf("%ld\n", get_elapsed_time_nano(&before, &after));
+        size_t total_sent = 0;
+
+        get_monotonic_time(&before);
+
+        if (strcmp(argv[1], "node") == 0) {
+            serialize(msgTree, message);
+        }
+
+        while (total_sent != msg_length) {
+            ssize_t bytes_sent = send(sock_fd, message + total_sent, msg_length - total_sent, 0);
+            if (bytes_sent < 0) {
+                perror("Send message error");
+                exit(EXIT_FAILURE);
+            }
+            total_sent += bytes_sent;
+        }
+
+        recv(sock_fd, &after, sizeof(after), 0);
+        printf("%ld\n", get_elapsed_time_nano(&before, &after));
+    }
 
     if (shutdown(sock_fd, SHUT_RDWR) < 0) {
         perror("Shutdown socket error");
