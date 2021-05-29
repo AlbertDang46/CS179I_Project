@@ -60,7 +60,7 @@ client_recv(struct timespec *before)
 		usleep(1);
 	}
 
-	printf("%ld\n", get_elapsed_time_nano(before, (timespec *)after));
+	printf("%ld\n", get_elapsed_time_nano(before, (struct timespec *)after));
 
 	return 0;
 }
@@ -80,8 +80,8 @@ server_recv(struct timespec *after)
 	if (rte_mempool_get(message_pool, &msg) < 0)
 		rte_panic("Failed to get message buffer\n");
 
-	(timespec *)msg->tv_sec = after->tv_sec;
-	(timespec *)msg->tv_nsec = after->tv_nsec;
+	(struct timespec *)msg->tv_sec = after->tv_sec;
+	(struct timespec *)msg->tv_nsec = after->tv_nsec;
 
 	if (rte_ring_enqueue(send_ring, msg) < 0) {
 		printf("Failed to send message - message discarded\n");

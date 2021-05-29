@@ -3,6 +3,11 @@
 
 #include <time.h>
 
+void get_monotonic_time(struct timespec* ts);
+long get_time_nano(struct timespec* ts);
+double get_elapsed_time_sec(struct timespec* before, struct timespec* after);
+long get_elapsed_time_nano(struct timespec* before, struct timespec* after);
+
 void get_monotonic_time(struct timespec* ts) {
     clock_gettime(CLOCK_MONOTONIC, ts);
 }
