@@ -89,6 +89,8 @@ client_recv(struct timespec *before)
 
 	printf("%ld\n", get_elapsed_time_nano(before, (struct timespec *)after));
 
+	rte_mempool_put(message_pool, after);
+
 	return 0;
 }
 
