@@ -1,3 +1,16 @@
+/* SPDX-License-Identifier: BSD-3-Clause
+ * Copyright(c) 2010-2014 Intel Corporation
+ */
+/*
+ * This sample application is a simple multi-process application which
+ * demostrates sharing of queues and memory pools between processes, and
+ * using those queues/pools for communication between the processes.
+ *
+ * Application is designed to run with two processes, a primary and a
+ * secondary, and each accepts commands on the commandline, the most
+ * important of which is "send", which just sends a string to the other
+ * process.
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
