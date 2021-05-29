@@ -7,17 +7,17 @@
 #define NO_NODE '~'
 #define NODE_SIZE 24
 
+typedef struct Node {
+	char key;
+	struct Node *left, *right;
+} Node;
+
 Node* newNode(char key);
 Node* buildTree(unsigned int size, char key);
 char* serialize(Node *root, char *list);
 char* deserialize(Node *root, char *list);
 void deleteTree(Node *root);
 void inorder(Node *root);
-
-typedef struct Node {
-	char key;
-	struct Node *left, *right;
-} Node;
 
 Node* newNode(char key) {
 	Node *temp = malloc(sizeof(Node));
