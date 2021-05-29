@@ -68,13 +68,11 @@ char* deserialize(Node *root, char *list) {
 }
 
 void deleteTree(Node *root) {
-	if (root == NULL) {
-		return;
+	if (root != NULL) {
+		deleteTree(root->left);
+		deleteTree(root->right);
+		free(root);
 	}
-
-	deleteTree(root->left);
-	deleteTree(root->right);
-	free(root);
 }
 
 void inorder(Node *root) {

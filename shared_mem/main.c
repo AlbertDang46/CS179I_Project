@@ -106,8 +106,6 @@ main(int argc, char **argv)
 		elem_size = NODE_SIZE;
 	}
 
-	unsigned lcore_id;
-
 	int ret = rte_eal_init(argc, argv);
 	if (ret < 0)
 		rte_exit(EXIT_FAILURE, "Cannot init EAL\n");
