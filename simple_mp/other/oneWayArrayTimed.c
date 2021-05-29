@@ -26,7 +26,8 @@
 #include <cmdline_socket.h>
 #include <cmdline.h>
 #include "mp_commands.h"
-#include "time.h"
+#include "timer.h"
+
 #define RTE_LOGTYPE_APP RTE_LOGTYPE_USER1
 static const char *_MSG_POOL = "MSG_POOL";
 static const char *_SEC_2_PRI = "SEC_2_PRI";
@@ -36,17 +37,11 @@ struct rte_mempool *message_pool;
 volatile int quit = 0;
 
 // added global variables
-int arraySize = 1000; // keeps track of size of array being sent. Mainly used for printing statement
+int arraySize = 1000; // inital Array size. Keeps track of size of Array being sent.
 const int increment = 1000;
 const int finalArraySize = 1000000;
 struct timespec currTime;
 const unsigned elmnt_size = 1000000; // size of element
-
-void get_monotonic_time(struct timespec* ts);
-
-void get_monotonic_time(struct timespec* ts) {
-    clock_gettime(CLOCK_MONOTONIC, ts);
-}
 
 static int
 lcore_recv(__rte_unused void *arg)
@@ -60,12 +55,12 @@ lcore_recv(__rte_unused void *arg)
             continue;
         }
 
-        // get end time for receiving array through shared memory
+        // get end time for receiving Array through shared memory
         get_monotonic_time(&currTime);
         struct timespec* currTimeTemp = &currTime;
-        double endTime = currTimeTemp->tv_sec + currTimeTemp->tv_nsec*1e-9;
+        long endTime = get_time_nano(currTimeTemp);
 
-        // free-up mempool of array
+        // free-up mempool of Array
         rte_mempool_put(message_pool, msg);
 
         // flag that waits for RTE_PROC_PRIMARY to write to arrayTimes.csv first
@@ -83,7 +78,7 @@ lcore_recv(__rte_unused void *arg)
 
         // write endTime to arrayTimes.csv
         FILE *fpOut = fopen("arrayTimes.csv", "a");
-        fprintf(fpOut, "%1.9f\n", endTime);
+        fprintf(fpOut, "%ld\n", endTime);
         fclose(fpOut);
 
         // set flagRing to 0 to tell RTE_PROC_PRIMARY to begin creating next array
@@ -91,9 +86,11 @@ lcore_recv(__rte_unused void *arg)
         fputs("0", flagRing);
         fclose(flagRing);
 
-        // increment arraySize to keep track of current array
+        // increment arraySize to keep track of current Array
         arraySize += increment;
-        if (arraySize > finalArraySize){ // quit program once all arrays's have been created
+
+        // quit program once all Arrays's have been created
+        if (arraySize > finalArraySize){
             FILE *flagRing = fopen("flagRing.txt", "w");
             fputs("1", flagRing);
             fclose(flagRing);
@@ -148,10 +145,10 @@ main(int argc, char **argv)
 
         printf("\nSending Arrays...\n");
 
-        // constructs array until finalTreeSize is reached
+        // constructs Array until finalTreeSize is reached
         while(arraySize <= finalArraySize) {
 
-            // flag that waits for SECONDARY_PROC to signal it is ready to recieve next array
+            // flag that waits for SECONDARY_PROC to signal it is ready to recieve next Array
             int flag = 1;
             while (flag) {
                 FILE *flagRing = fopen("flagRing.txt", "r");
@@ -164,7 +161,7 @@ main(int argc, char **argv)
             fputs("1", flagRing);
             fclose(flagRing);
 
-            // construct new array of size "arraySize"
+            // construct new Array of size "arraySize"
             char array[1000000] = {0};
             char *message = array;
 
@@ -173,10 +170,10 @@ main(int argc, char **argv)
             }
             message[arraySize - 1] = '\0';
 
-            // get start time for sending array through shared memory
+            // get start time for sending Array through shared memory
             get_monotonic_time(&currTime);
             struct timespec *currTimeTemp = &currTime;
-            double startTime = currTimeTemp->tv_sec + currTimeTemp->tv_nsec * 1e-9;
+            long startTime = get_time_nano(currTimeTemp);
 
             // send message
             void *msg = NULL;
@@ -195,7 +192,7 @@ main(int argc, char **argv)
 
             // write start time to arrayTimes.csv
             FILE *fpOut = fopen("arrayTimes.csv", "a");
-            fprintf(fpOut, "%d,%1.9f,", arraySize, startTime);
+            fprintf(fpOut, "%d,%ld,", arraySize, startTime);
             fclose(fpOut);
 
             // increment arraySize for next tree
@@ -206,6 +203,8 @@ main(int argc, char **argv)
             fputs("0", flagCSV);
             fclose(flagCSV);
         }
+
+        // once all Arrays have been created exit the program by setting quit = 1
         printf("\nComplete.\n");
         quit = 1;
 
@@ -226,12 +225,6 @@ main(int argc, char **argv)
 
 /*
 
-- Make sure reserve memory pool through primary process and associate to it with second process
-
-- _MSG_POOL, _PRI_2_SEC, _SEC_2_PRI are strings that represents shared memory
-
-- Secondary function uses those strings in the lookup functions to associate to shared memory
-
 - For the sender a buffer is allocated from the memory pool which gets
   filled with the message data and then it gets queued to the ring.
 
@@ -240,11 +233,8 @@ main(int argc, char **argv)
 
 - The message pool is in some hugepage.
 
-- Rings are only to have file descriptors. They point where the data is in the mempool.
+-l 0-1 -n 4 --proc-type=primary
 
-
- -l 0-1 -n 4 --proc-type=primary
-
- -l 2-3 -n 4 --proc-type=secondary
+-l 2-3 -n 4 --proc-type=secondary
 
 */

@@ -26,7 +26,8 @@
 #include <cmdline_socket.h>
 #include <cmdline.h>
 #include "mp_commands.h"
-#include "time.h"
+#include "timer.h"
+
 #define RTE_LOGTYPE_APP RTE_LOGTYPE_USER1
 static const char *_MSG_POOL = "MSG_POOL";
 static const char *_SEC_2_PRI = "SEC_2_PRI";
@@ -38,13 +39,6 @@ volatile int quit = 0;
 // added global variables
 struct timespec currTime;
 const unsigned elmnt_size = 1000000; // size of element
-
-void get_monotonic_time(struct timespec* ts);
-
-// gets current time
-void get_monotonic_time(struct timespec* ts) {
-    clock_gettime(CLOCK_MONOTONIC, ts);
-}
 
 static int
 lcore_recv(__rte_unused void *arg)
@@ -58,18 +52,18 @@ lcore_recv(__rte_unused void *arg)
             continue;
         }
 
-        // get end time for receiving array through shared memory
+        // get end time for receiving Array through shared memory
         get_monotonic_time(&currTime);
         struct timespec* currTimeTemp = &currTime;
         double endTime = currTimeTemp->tv_sec + currTimeTemp->tv_nsec*1e-9;
 
         printf("\ncore %u: Received Tree @  %1.9f\n", lcore_id, endTime);
 
-        // print array
+        // print Array
         printf("\nPrinting Array...\n");
         printf("%s\n", (char *) msg);
 
-        // free-up mempool of array
+        // free-up mempool of Array
         rte_mempool_put(message_pool, msg);
 
         printf("\nExiting...\n");
@@ -119,7 +113,7 @@ main(int argc, char **argv)
 
     if (rte_eal_process_type() == RTE_PROC_PRIMARY){
 
-        // get array size from user
+        // get Array size from user
         char enterSend[10];
         printf("\nEnter size of Array to send: ");
         char* fg_enterSend = fgets(enterSend,10,stdin);
@@ -128,10 +122,10 @@ main(int argc, char **argv)
         // convert user input to integer
         int arraySize = atoi(enterSend);
 
-        // if input was successful, send array through shared memory
+        // if input was successful, send Array through shared memory
         if (arraySize && fg_enterSend) {
 
-            // construct array of size "arraySize"
+            // construct Array of size "arraySize"
             char array[1000000] = {0};
             char *message = array;
 
@@ -140,7 +134,7 @@ main(int argc, char **argv)
             }
             message[arraySize - 1] = '\0';
 
-            // get start time for sending tree through shared memory
+            // get start time for sending Array through shared memory
             get_monotonic_time(&currTime);
             struct timespec *currTimeTemp = &currTime;
             double startTime = currTimeTemp->tv_sec + currTimeTemp->tv_nsec * 1e-9;
@@ -189,12 +183,6 @@ main(int argc, char **argv)
 
 /*
 
-- Make sure reserve memory pool through primary process and associate to it with second process
-
-- _MSG_POOL, _PRI_2_SEC, _SEC_2_PRI are strings that represents shared memory
-
-- Secondary function uses those strings in the lookup functions to associate to shared memory
-
 - For the sender a buffer is allocated from the memory pool which gets
   filled with the message data and then it gets queued to the ring.
 
@@ -203,11 +191,8 @@ main(int argc, char **argv)
 
 - The message pool is in some hugepage.
 
-- Rings are only to have file descriptors. They point where the data is in the mempool.
+-l 0-1 -n 4 --proc-type=primary
 
-
- -l 0-1 -n 4 --proc-type=primary
-
- -l 2-3 -n 4 --proc-type=secondary
+-l 2-3 -n 4 --proc-type=secondary
 
 */

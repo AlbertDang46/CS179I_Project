@@ -234,13 +234,7 @@ main(int argc, char **argv)
 }
 
 /*
-
-- Make sure reserve memory pool through primary process and associate to it with second process
-
-- _MSG_POOL, _PRI_2_SEC, _SEC_2_PRI are strings that represents shared memory
-
-- Secondary function uses those strings in the lookup functions to associate to shared memory
-
+ *
 - For the sender a buffer is allocated from the memory pool which gets
   filled with the message data and then it gets queued to the ring.
 
@@ -249,12 +243,9 @@ main(int argc, char **argv)
 
 - The message pool is in some hugepage.
 
-- Rings are only to have file descriptors. They point where the data is in the mempool.
+-l 0-1 -n 4 --proc-type=primary
 
-
- -l 0-1 -n 4 --proc-type=primary
-
- -l 2-3 -n 4 --proc-type=secondary
+-l 2-3 -n 4 --proc-type=secondary
 
 */
 

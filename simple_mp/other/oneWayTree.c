@@ -39,7 +39,8 @@
 #include <cmdline_socket.h>
 #include <cmdline.h>
 #include "mp_commands.h"
-#include "time.h"
+#include "timer.h"
+
 #define RTE_LOGTYPE_APP RTE_LOGTYPE_USER1
 static const char *_MSG_POOL = "MSG_POOL";
 static const char *_SEC_2_PRI = "SEC_2_PRI";
@@ -52,107 +53,92 @@ volatile int quit = 0;
 struct timespec currTime;
 const unsigned elmnt_size = 24; // size of element in mempool
 
-// binary tree node
-struct node {
-    char data[2];
-    struct node* left;
-    struct node* right;
-} node;
+// binary Tree node
+typedef struct Node {
+    char key;
+    struct Node *left, *right;
+} Node;
 
-struct node* newNode(char data);
-void constructTree(struct node **root, int treeSize);
-void memCpyTree(void **msg, struct node **root);
-void destroyTreePool(struct node **root);
-void traverseTree(struct node **root);
-void get_monotonic_time(struct timespec* ts);
+Node* newNode(char key);
+Node* buildTree(unsigned int size, char key);
+void memCpyTree(void *msg, Node *root);
+void inorder(Node *root);
+void destroyTreePool(Node *root);
 
 // creates new node
-struct node* newNode(char data) {
+Node* newNode(char key) {
+    Node *temp = malloc(sizeof(Node));
+    temp->key = key;
+    temp->left = temp->right = NULL;
 
-    struct node* node = (struct node*)malloc(sizeof(struct node));
-
-    node->data[0] = data;
-    node->data[1] = '\0';
-    node->left = NULL;
-    node->right = NULL;
-
-    return (node);
+    return temp;
 }
 
-// constructs a balanced binary tree of "treeSize" amount of nodes
-void constructTree(struct node **root, int treeSizeTemp) {
-
-    if (treeSizeTemp == 0) {
-        return;
-    }
-    *root = newNode('a');
-    treeSizeTemp--;
-
-    int leftTreeSize = treeSizeTemp / 2;
-    int rightTreeSize = treeSizeTemp / 2;
-
-    if (treeSizeTemp % 2 != 0) {
-        leftTreeSize = (treeSizeTemp / 2) + 1;
+// builds binary Tree of size "size" with key "key"
+Node* buildTree(unsigned int size, char key) {
+    if (size == 0) {
+        return NULL;
     }
 
-    constructTree(&(*root)->left, leftTreeSize);
-    constructTree(&(*root)->right, rightTreeSize);
+    unsigned int remainingSize = size - 1;
+    unsigned int halfSize = remainingSize / 2;
+
+    Node *root = newNode(key);
+    root->left = buildTree(remainingSize - halfSize, key);
+    root->right = buildTree(halfSize, key);
+
+    return root;
 }
 
-// memcpy tree in mempool
-void memCpyTree(void **msg, struct node **root) {
-    if(*root != NULL) {
+// memcpy Tree into mempool
+void memCpyTree(void *msg, Node *root) {
+    if(root != NULL) {
         // copy node to mempool buffer
-        memcpy(*msg, *root, 24);
+        memcpy(msg, root, 24);
 
-        if ((*root)->left != NULL) {
+        if (root->left != NULL) {
             // get new mempool buffer
             void* msgLeft = NULL;
             rte_mempool_get(message_pool, &msgLeft);
 
             // point node in mempool's left pointer to new mempool buffer
-            (*((struct node**)msg))->left = (struct node*) msgLeft;
+            ((Node*)msg)->left = (Node*) msgLeft;
 
-            memCpyTree(&msgLeft, &(*root)->left);
+            memCpyTree(msgLeft, root->left);
 
         }
-        if ((*root)->right != NULL) {
+        if (root->right != NULL) {
             // get new mempool buffer
             void* msgRight = NULL;
             rte_mempool_get(message_pool, &msgRight);
 
             // point node in mempool's right pointer to new mempool buffer
-            (*((struct node**)msg))->right = (struct node*) msgRight;
+            ((Node*)msg)->right = (Node*) msgRight;
 
-            memCpyTree(&msgRight, &(*root)->right);
+            memCpyTree(msgRight, root->right);
         }
 
-        // free old after tree (no longer needed after it's copied to mempool
-        free(*root);
+        // free old after Tree (no longer needed after it's copied to mempool
+        free(root);
     }
 }
 
-// pre-order traversal of binary tree
-void traverseTree(struct node **root) {
-    if(*root != NULL) {
-        printf("node->data = %s\n", (*root)->data);
-        traverseTree(&(*root)->left);
-        traverseTree(&(*root)->right);
+// traverse Tree inorder
+void inorder(Node *root) {
+    if (root) {
+        inorder(root->left);
+        printf("%c\n", root->key);
+        inorder(root->right);
     }
 }
 
-// free-up mempool of current tree
-void destroyTreePool(struct node **root) {
-    if (*root != NULL) {
-        destroyTreePool(&(*root)->left);
-        destroyTreePool(&(*root)->right);
-        rte_mempool_put(message_pool, *root);
+// free-up mempool of current Tree
+void destroyTreePool(Node *root) {
+    if (root != NULL) {
+        destroyTreePool(root->left);
+        destroyTreePool(root->right);
+        rte_mempool_put(message_pool, root);
     }
-}
-
-// gets current time
-void get_monotonic_time(struct timespec* ts) {
-    clock_gettime(CLOCK_MONOTONIC, ts);
 }
 
 static int
@@ -167,20 +153,20 @@ lcore_recv(__rte_unused void *arg)
             continue;
         }
 
-        // get end time for receiving tree through shared memory
+        // get end time for receiving Tree through shared memory
         get_monotonic_time(&currTime);
         struct timespec* currTimeTemp = &currTime;
         double endTime = currTimeTemp->tv_sec + currTimeTemp->tv_nsec*1e-9;
 
         printf("\ncore %u: Received Tree @  %1.9f\n", lcore_id, endTime);
 
-        // print tree
+        // print Tree
         printf("\nPrinting Tree...\n");
-        struct node* root = (struct node*) msg;
-        traverseTree(&root);
+        Node* root = (Node*) msg;
+        inorder(root);
 
-        // free-up mempool of tree
-        destroyTreePool(&root);
+        // free-up mempool of Tree
+        destroyTreePool(root);
 
         printf("\nExiting...\n");
         quit = 1;
@@ -238,24 +224,23 @@ main(int argc, char **argv)
         // convert user input to integer
         int treeSize = atoi(enterSend);
 
-        // if input was successful, send tree through shared memory
+        // if input was successful, send Tree through shared memory
         if (treeSize && fg_enterSend) {
 
-            // construct tree of size "treeSize"
-            struct node* root;
-            constructTree(&root, treeSize);
+            // construct Tree of size "treeSize"
+            Node* root = buildTree(treeSize, '0');
             printf("\nPrinting tree...\n");
-            traverseTree(&root);
+            inorder(root);
 
-            // get start time for sending tree through shared memory
+            // get start time for sending Tree through shared memory
             get_monotonic_time(&currTime);
             struct timespec* currTimeTemp = &currTime;
             double startTime = currTimeTemp->tv_sec + currTimeTemp->tv_nsec*1e-9;
 
-            // copy entire tree to mempool
+            // copy entire Tree to mempool
             void* msg = NULL;
             rte_mempool_get(message_pool, &msg);
-            memCpyTree(&msg, &root);
+            memCpyTree(msg, root);
 
             // queue only root pointer send_ring
             if (rte_ring_enqueue(send_ring, msg) < 0) {
@@ -290,12 +275,6 @@ main(int argc, char **argv)
 
 /*
 
-- Make sure reserve memory pool through primary process and associate to it with second process
-
-- _MSG_POOL, _PRI_2_SEC, _SEC_2_PRI are strings that represents shared memory
-
-- Secondary function uses those strings in the lookup functions to associate to shared memory
-
 - For the sender a buffer is allocated from the memory pool which gets
   filled with the message data and then it gets queued to the ring.
 
@@ -304,12 +283,9 @@ main(int argc, char **argv)
 
 - The message pool is in some hugepage.
 
-- Rings are only to have file descriptors. They point where the data is in the mempool.
+-l 0-1 -n 4 --proc-type=primary
 
-
- -l 0-1 -n 4 --proc-type=primary
-
- -l 2-3 -n 4 --proc-type=secondary
+-l 2-3 -n 4 --proc-type=secondary
 
 */
 
