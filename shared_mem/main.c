@@ -127,7 +127,7 @@ main(int argc, char **argv)
 {
 	const unsigned flags = 0;
 	const unsigned ring_size = 64;
-	unsigned pool_size = 2;
+	unsigned pool_size = 1;
 	unsigned elem_size = MESSAGE_LIMIT;
 	const unsigned pool_cache = 32;
 	const unsigned priv_data_sz = 0;
