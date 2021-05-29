@@ -41,7 +41,7 @@
 #include "node.h"
 
 #define RTE_LOGTYPE_APP RTE_LOGTYPE_USER1
-#define MESSAGE_LIMIT 1048576
+#define MESSAGE_LIMIT 1000000
 #define NUM_DATAPOINTS 1000
 #define DATA_INC 1000
 
@@ -127,7 +127,7 @@ main(int argc, char **argv)
 {
 	const unsigned flags = 0;
 	const unsigned ring_size = 64;
-	unsigned pool_size = 1;
+	unsigned pool_size = 64;
 	unsigned elem_size = MESSAGE_LIMIT;
 	const unsigned pool_cache = 32;
 	const unsigned priv_data_sz = 0;
